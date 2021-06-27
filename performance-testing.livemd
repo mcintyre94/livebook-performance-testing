@@ -1,0 +1,263 @@
+# Performance testing with LiveBook
+
+## Setup
+
+In this notebook we will use the [`VegaLite`](https://github.com/elixir-nx/vega_lite) library to
+investigate the performance of an API call. The same technique can be used for any Elixir function
+call - including shelling out with `System.cmd/3`. We will use [`Kino`](https://github.com/elixir-nx/kino) 
+to render the graph as we make requests, which may be useful for longer running performance tests.
+
+We also generate some basic statistics eg. min/max/median run time.
+
+First we install our dependencies.
+
+* VegaLite for drawing graphs
+* HTTPoison for making the URL request
+* Kino for rendering the graph dyamically
+* Statistics for calculating summary stats from the data
+
+```elixir
+Mix.install([
+  {:vega_lite, "~> 0.1.0"},
+  {:httpoison, "~> 1.8"},
+  {:kino, "~> 0.2.0"},
+  {:statistics, "~> 0.6.2"}
+])
+```
+
+```elixir
+alias VegaLite, as: Vl
+```
+
+The following is a simple GenServer that can have data points added to it,
+and then generate a statistical summary of the data.
+
+```elixir
+defmodule StatsSummary do
+  use GenServer
+  # Client
+  def init do
+    GenServer.start_link(__MODULE__, nil)
+  end
+
+  def push(instance, %{} = map) do
+    GenServer.call(instance, {:push, map})
+  end
+
+  def show(instance) do
+    GenServer.call(instance, :show)
+  end
+
+  def summarise(instance, field) when is_atom(field) do
+    GenServer.call(instance, {:summarise, field})
+  end
+
+  def clear(instance) do
+    GenServer.call(instance, :clear)
+  end
+
+  # Server callbacks
+  def init(_) do
+    {:ok, []}
+  end
+
+  def handle_call({:push, %{} = map}, _from, state) do
+    insert = :maps.filter(fn _, v -> is_number(v) end, map)
+    {:reply, :ok, [insert | state]}
+  end
+
+  def handle_call(:show, _from, state) do
+    {:reply, state, state}
+  end
+
+  def handle_call({:summarise, field}, _from, state) do
+    values = get_values(state, field)
+
+    data = [
+      {"Min", Statistics.min(values)},
+      {"Median", Statistics.median(values)},
+      {"Max", Statistics.max(values)},
+      {"Standard Deviation", Statistics.stdev(values)}
+    ]
+
+    {:reply, data, state}
+  end
+
+  def handle_call(:clear, _from, _state) do
+    {:reply, :ok, []}
+  end
+
+  # Private helpers
+  defp get_values(maps, field) when is_atom(field) do
+    Enum.flat_map(maps, fn m ->
+      case Map.get(m, field) do
+        nil -> []
+        x -> [x]
+      end
+    end)
+  end
+end
+```
+
+## Setup: Stats Summary Module
+
+The following is a simple GenServer that can store data points pushed to it,
+and then generate a statistical summary of the data.
+
+```elixir
+defmodule StatsSummary do
+  use GenServer
+  # Client
+  def init do
+    GenServer.start_link(__MODULE__, nil)
+  end
+
+  def push(instance, %{} = map) do
+    GenServer.call(instance, {:push, map})
+  end
+
+  def show(instance) do
+    GenServer.call(instance, :show)
+  end
+
+  def summarise(instance, field) when is_atom(field) do
+    GenServer.call(instance, {:summarise, field})
+  end
+
+  def clear(instance) do
+    GenServer.call(instance, :clear)
+  end
+
+  # Server callbacks
+  def init(_) do
+    {:ok, []}
+  end
+
+  def handle_call({:push, %{} = map}, _from, state) do
+    insert = :maps.filter(fn _, v -> is_number(v) end, map)
+    {:reply, :ok, [insert | state]}
+  end
+
+  def handle_call(:show, _from, state) do
+    {:reply, state, state}
+  end
+
+  def handle_call({:summarise, field}, _from, state) do
+    values = get_values(state, field)
+
+    data = [
+      {"Min", Statistics.min(values)},
+      {"Median", Statistics.median(values)},
+      {"Max", Statistics.max(values)},
+      {"Standard Deviation", Statistics.stdev(values)}
+    ]
+
+    {:reply, data, state}
+  end
+
+  def handle_call(:clear, _from, _state) do
+    {:reply, :ok, []}
+  end
+
+  # Private helpers
+  defp get_values(maps, field) when is_atom(field) do
+    Enum.flat_map(maps, fn m ->
+      case Map.get(m, field) do
+        nil -> []
+        x -> [x]
+      end
+    end)
+  end
+end
+```
+
+```elixir
+# Example use
+
+{:ok, instance} = StatsSummary.init()
+StatsSummary.push(instance, %{a: 1, b: 100})
+StatsSummary.push(instance, %{a: 2, b: 150})
+StatsSummary.push(instance, %{a: 3, b: 200})
+
+StatsSummary.summarise(instance, :a) |> Kino.render()
+StatsSummary.summarise(instance, :b)
+```
+
+## HTTP request performance testing
+
+We use inputs for the URL and for the number of iterations. We request the given URL
+the given number of times, and record how many milliseconds each request takes. We draw
+a live updating graph of this as the requests are made.
+
+<!-- livebook:{"livebook_object":"cell_input","name":"URL","type":"url","value":"http://httparrot.herokuapp.com/get"} -->
+
+<!-- livebook:{"livebook_object":"cell_input","name":"Iterations","type":"number","value":"50"} -->
+
+First, we convert our inputs into variables. Note that LiveBook appends a newline to each input,
+so we need to remove this.
+
+```elixir
+url = IO.gets("URL: ") |> String.trim()
+{iterations, _} = IO.gets("Iterations: ") |> String.trim() |> Integer.parse()
+:ok
+```
+
+Next we set up our function to time repeatedly. In this case we use a straightforward
+call to `HTTPoison.get!`.
+
+* We could use different `HTTPoison` methods or add headers/cookies/a request body etc.
+* We could use `System.cmd/3` to shell out to any shell function
+* We could use any other Elixir function
+
+Note that the function must return `:ok`
+
+```elixir
+request_function = fn ->
+  HTTPoison.get!(url)
+  :ok
+end
+```
+
+```elixir
+# Initialise a StatsSummary instance to store the data points
+{:ok, stats_instance} = StatsSummary.init()
+
+widget =
+  Vl.new(width: 600, height: 400, title: "Performance for #{url}")
+  |> Vl.mark(:line, values: true)
+  |> Vl.encode_field(:x, "iteration", type: :quantitative, title: "Iteration")
+  |> Vl.encode_field(:y, "time", type: :quantitative, title: "Time (ms)")
+  |> Kino.VegaLite.new()
+  |> Kino.render()
+
+for i <- 1..iterations do
+  {microseconds, :ok} = :timer.tc(request_function)
+  milliseconds = microseconds / 1000
+  point = %{iteration: i, time: milliseconds}
+  Kino.VegaLite.push(widget, point)
+  StatsSummary.push(stats_instance, point)
+end
+
+:ok
+```
+
+Finally we can render the summary statistics.
+
+The following code shows a very simple method of converting it to markdown,
+and rendering it with `Kino.Markdown`
+
+To change which statistics are produced, update `StatsSummary.handle_call({:summarise, field}, _from, state)`
+
+```elixir
+to2dp = fn float -> :erlang.float_to_binary(float, decimals: 2) end
+
+data = StatsSummary.summarise(stats_instance, :time)
+
+markdown =
+  for {stat, value} <- data do
+    "- **#{stat}**: #{to2dp.(value)}"
+  end
+  |> Enum.join("\n")
+
+Kino.Markdown.new(markdown)
+```
