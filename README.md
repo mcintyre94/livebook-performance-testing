@@ -16,6 +16,8 @@ The easiest way to run this livebook is using livebook.dev:
 
 [![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fmcintyre94%2Flivebook-performance-testing%2Fblob%2Fmain%2Fperformance-testing.livemd)
 
+Note that currently the Fly free tier instance doesn't have enough memory to run this livebook.
+
 Scroll down to "HTTP request performance testing" which is
 where we configure the performance testing.
 

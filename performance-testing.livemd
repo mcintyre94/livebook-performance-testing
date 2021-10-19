@@ -17,6 +17,7 @@ First we install our dependencies.
 * Statistics for calculating summary stats from the data
 
 ```elixir
+# Make sure you are running on a machine with at least 512MB of RAM
 Mix.install([
   {:vega_lite, "~> 0.1.0"},
   {:httpoison, "~> 1.8"},
