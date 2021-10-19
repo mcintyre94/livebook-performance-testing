@@ -1,3 +1,5 @@
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fmcintyre94%2Flivebook-performance-testing%2Fblob%2Fmain%2Fperformance-testing.livemd)
+
 # Performance testing with Livebook
 
 This repo contains a [Livebook](https://github.com/elixir-nx/livebook) written in Elixir 
@@ -10,10 +12,9 @@ that can be used to perform simple API performance/load testing.
 
 ## Usage
 
-You'll need to install and run Livebook if you don't already have it installed.
-Follow the instructions in the repo: https://github.com/elixir-nx/livebook#usage
+The easiest way to run this livebook is using livebook.dev: 
 
-The notebook can be imported by URL: https://github.com/mcintyre94/livebook-performance-testing/blob/main/performance-testing.livemd
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fmcintyre94%2Flivebook-performance-testing%2Fblob%2Fmain%2Fperformance-testing.livemd)
 
 Scroll down to "HTTP request performance testing" which is
 where we configure the performance testing.
@@ -25,3 +26,12 @@ Currently this performs a GET request to the input URL.
 This can be any Elixir function, as long as it returns `:ok`
 
 Run the notebook! You can use the keyboard shortcut `ea` to execute all cells.
+
+### Running without livebook.dev
+
+You'll need to install and run Livebook if you don't already have it installed.
+Follow the instructions in the repo: https://github.com/elixir-nx/livebook#usage
+
+The notebook can be imported by URL: https://github.com/mcintyre94/livebook-performance-testing/blob/main/performance-testing.livemd
+
+
